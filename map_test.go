@@ -7,49 +7,60 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewMap(t *testing.T) {
-	m := keepcase.NewMap[string]()
+func TestNewMapEmpty(t *testing.T) {
+	m := keepcase.NewMap[string](nil)
 
-	mm := m.AsMap()
+	mm := m.GetBacking()
 	assert.Empty(t, mm)
 }
 
+func TestNewMapBacking(t *testing.T) {
+	mm := make(map[string]string)
+	mm["saul"] = "goodman"
+
+	m := keepcase.NewMap(mm)
+
+	// Check that existing entries are processed
+	saul, _ := m.Get("saul")
+	assert.Equal(t, "goodman", saul)
+
+	// Assert that passed-in map is updated
+	m.Set("saul", "GOODMAN")
+	assert.Equal(t, "GOODMAN", mm["saul"])
+}
+
 func TestSetCaseRespect(t *testing.T) {
-	m := keepcase.NewMap[string]()
+	m := keepcase.NewMap[string](nil)
 
 	m.SetCaseRespect("saul", "goodman")
 
-	mm := m.AsMap()
+	mm := m.GetBacking()
 	assert.Equal(t, "goodman", mm["saul"])
 	assert.Equal(t, 1, m.Len())
 
 	m.SetCaseRespect("SAUL", "GOODMAN")
-
-	mm = m.AsMap()
 
 	assert.Equal(t, "GOODMAN", mm["saul"])
 	assert.Equal(t, 1, m.Len())
 }
 
 func TestSetCaseOverride(t *testing.T) {
-	m := keepcase.NewMap[string]()
+	m := keepcase.NewMap[string](nil)
 
 	m.SetCaseOverride("saul", "goodman")
 
-	mm := m.AsMap()
+	mm := m.GetBacking()
 	assert.Equal(t, "goodman", mm["saul"])
 	assert.Equal(t, 1, m.Len())
 
 	m.SetCaseOverride("SAUL", "GOODMAN")
-
-	mm = m.AsMap()
 
 	assert.Equal(t, "GOODMAN", mm["SAUL"])
 	assert.Equal(t, 1, m.Len())
 }
 
 func TestGetCaseInsensitive(t *testing.T) {
-	m := keepcase.NewMap[string]()
+	m := keepcase.NewMap[string](nil)
 
 	m.SetCaseRespect("saul", "goodman")
 
@@ -65,7 +76,7 @@ func TestGetCaseInsensitive(t *testing.T) {
 }
 
 func TestGetCaseSensitive(t *testing.T) {
-	m := keepcase.NewMap[string]()
+	m := keepcase.NewMap[string](nil)
 
 	m.SetCaseRespect("saul", "goodman")
 
@@ -78,11 +89,11 @@ func TestGetCaseSensitive(t *testing.T) {
 
 	pollos, ok := m.GetCaseSensitive("pollos")
 	assert.False(t, ok)
-	assert.Equal(t, "", pollos)
+	assert.Empty(t, "", pollos)
 }
 
 func TestSetGet(t *testing.T) {
-	m := keepcase.NewMap[string]()
+	m := keepcase.NewMap[string](nil)
 
 	m.Set("saul", "goodman")
 	saul, _ := m.Get("saul")

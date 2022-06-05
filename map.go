@@ -6,17 +6,27 @@ import (
 )
 
 type Map[T any] struct {
-	keys map[string]string
-	m    map[string]T
-	lock *sync.RWMutex
+	keys    map[string]string
+	backing map[string]T
+	lock    *sync.RWMutex
 }
 
-func NewMap[T any]() *Map[T] {
-	return &Map[T]{
-		keys: make(map[string]string),
-		m:    make(map[string]T),
-		lock: &sync.RWMutex{},
+func NewMap[T any](backing map[string]T) *Map[T] {
+	if backing == nil {
+		backing = make(map[string]T)
 	}
+
+	m := &Map[T]{
+		keys:    make(map[string]string),
+		backing: backing,
+		lock:    &sync.RWMutex{},
+	}
+
+	for k := range backing {
+		m.keys[strings.ToLower(k)] = k
+	}
+
+	return m
 }
 
 // SetCaseRespect sets the value in the map for the given key, respecting the casing of a key
@@ -28,12 +38,11 @@ func (m Map[T]) SetCaseRespect(key string, value T) {
 	defer m.lock.Unlock()
 
 	if existingKey, ok := m.keys[canonicalKey]; ok {
-		m.m[existingKey] = value
+		m.backing[existingKey] = value
 	} else {
-		m.m[key] = value
+		m.backing[key] = value
 		m.keys[canonicalKey] = key
 	}
-
 }
 
 // SetCaseOverride sets the value in the map for the given key, overriding any existing key's
@@ -45,10 +54,10 @@ func (m Map[T]) SetCaseOverride(key string, value T) {
 	defer m.lock.Unlock()
 
 	if existingKey, ok := m.keys[canonicalKey]; ok {
-		delete(m.m, existingKey)
+		delete(m.backing, existingKey)
 	}
 
-	m.m[key] = value
+	m.backing[key] = value
 	m.keys[canonicalKey] = key
 }
 
@@ -60,7 +69,7 @@ func (m Map[T]) GetCaseInsensitive(key string) (T, bool) {
 	defer m.lock.RUnlock()
 
 	if existingKey, ok := m.keys[canonicalKey]; ok {
-		return m.m[existingKey], true
+		return m.backing[existingKey], true
 	}
 
 	return *new(T), false
@@ -71,7 +80,7 @@ func (m Map[T]) GetCaseSensitive(key string) (T, bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	value, ok := m.m[key]
+	value, ok := m.backing[key]
 	return value, ok
 }
 
@@ -85,8 +94,14 @@ func (m Map[T]) Set(key string, value T) {
 	m.SetCaseRespect(key, value)
 }
 
-func (m Map[T]) AsMap() map[string]T {
-	return m.m
+func (m Map[T]) SetCollection(input map[string]T) {
+	for k, v := range input {
+		m.SetCaseRespect(k, v)
+	}
+}
+
+func (m Map[T]) GetBacking() map[string]T {
+	return m.backing
 }
 
 func (m Map[T]) Len() int {
